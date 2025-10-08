@@ -27,8 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Генерация userId
   if (!localStorage.getItem("userId")) {
-    const newUserId = crypto.randomUUID();
-    localStorage.setItem("userId", newUserId);
+    localStorage.setItem("userId", crypto.randomUUID());
   }
   const userId = localStorage.getItem("userId");
 
@@ -51,15 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
       thinking = false;
     }
 
-    listening = true;
-    micIcon.src = micOnSVG;
-
-    // === 1. Запуск распознавания речи ===
-    recognition.start();
-
-    // === 2. Запуск визуализации (только если поддерживается) ===
     try {
+      // === 1. Получаем разрешение на микрофон ===
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // === 2. Запускаем AudioContext для визуализации ===
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') await audioCtx.resume();
 
@@ -70,8 +65,15 @@ document.addEventListener('DOMContentLoaded', () => {
       dataArray = new Uint8Array(analyser.frequencyBinCount);
 
       visualizeAudio();
+
+      // === 3. Запускаем распознавание речи ===
+      recognition.start();
+      listening = true;
+      micIcon.src = micOnSVG;
+
     } catch (err) {
-      console.warn("Визуализация громкости не доступна:", err);
+      console.error("Ошибка доступа к микрофону:", err);
+      alert("Не удалось получить доступ к микрофону. Проверьте разрешения и HTTPS.");
     }
   });
 
@@ -99,11 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(visualizeAudio);
 
     analyser.getByteFrequencyData(dataArray);
-    let sum = dataArray.reduce((a, b) => a + b, 0);
-    let avgVolume = sum / dataArray.length;
+    const avgVolume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
     const maxSize = baseSize * 1.5;
-    let size = Math.min(maxSize, baseSize + avgVolume / 2);
+    const size = Math.min(maxSize, baseSize + avgVolume / 2);
     sphere.style.width = size + 'px';
     sphere.style.height = size + 'px';
 
