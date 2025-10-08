@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentAbortController = null;
   let thinking = false;
 
+  // SpeechRecognition
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const userId = localStorage.getItem("userId");
 
+  // Кнопка микрофона
   micBtn.addEventListener('click', async () => {
     if (listening) {
       stopListening();
@@ -36,27 +38,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      // Запрашиваем микрофон один раз
+      // получаем микрофон один раз
       if (!mediaStream) {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       }
 
       // AudioContext для визуализации
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        source = audioCtx.createMediaStreamSource(mediaStream);
+        analyser = audioCtx.createAnalyser();
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+      }
       if (audioCtx.state === 'suspended') await audioCtx.resume();
-
-      source = audioCtx.createMediaStreamSource(mediaStream);
-      analyser = audioCtx.createAnalyser();
-      source.connect(analyser);
-      analyser.fftSize = 256;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
 
       visualizeAudio();
 
-      // Запускаем распознавание речи
+      // старт распознавания
       recognition.start();
       listening = true;
       micIcon.src = micOnSVG;
+
     } catch (err) {
       console.error("Ошибка доступа к микрофону:", err);
       alert("Не удалось получить доступ к микрофону. Проверьте разрешения и HTTPS.");
@@ -78,16 +82,19 @@ document.addEventListener('DOMContentLoaded', () => {
     sphere.classList.remove('speaking', 'thinking');
   }
 
+  // визуализация громкости
   function visualizeAudio() {
     if (!listening || !analyser) return;
     requestAnimationFrame(visualizeAudio);
 
     analyser.getByteFrequencyData(dataArray);
     const avgVolume = dataArray.reduce((a,b)=>a+b,0)/dataArray.length;
+
     const maxSize = baseSize*1.5;
     const size = Math.min(maxSize, baseSize + avgVolume/2);
     sphere.style.width = size+'px';
     sphere.style.height = size+'px';
+
     const lightness = Math.min(70, 50 + avgVolume/3);
     sphere.style.backgroundColor = `hsl(120,70%,${lightness}%)`;
     sphere.style.boxShadow = `0 0 ${avgVolume/2}px hsl(120,70%,${lightness}%)`;
@@ -104,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
   recognition.onresult = async (event) => {
     const userMessage = event.results[0][0].transcript;
     stopListening();
+
     try {
       thinking = true;
       showThinkingAnimation();
@@ -148,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     stopListening();
   };
 });
+
 
 
 // === Переход между вкладками ===
