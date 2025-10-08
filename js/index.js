@@ -32,51 +32,63 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const userId = localStorage.getItem("userId");
 
-  micBtn.addEventListener('click', async () => {
-    if (listening) {
-      stopListening();
-      return;
-    }
+ micBtn.addEventListener('click', async () => {
+  if (listening) {
+    stopListening();
+    return;
+  }
 
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-      currentAudio = null;
-      resetSphere();
-    }
-
-    if (currentAbortController) {
-      currentAbortController.abort();
-      currentAbortController = null;
-      thinking = false;
-    }
-
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioCtx.createMediaStreamSource(mediaStream);
-      analyser = audioCtx.createAnalyser();
-      source.connect(analyser);
-      analyser.fftSize = 256;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-      listening = true;
-      micIcon.src = micOnSVG;
-
-      recognition.start();
-      visualizeAudio();
-    } catch (err) {
-      console.error("Ошибка доступа к микрофону:", err);
-    }
-  });
-
-  function stopListening() {
-    if (recognition) recognition.stop();
-    if (mediaStream) mediaStream.getAudioTracks().forEach(track => track.stop());
-    listening = false;
-    micIcon.src = micOffSVG;
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
     resetSphere();
   }
+
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+    thinking = false;
+  }
+
+  try {
+    // Сохраняем поток глобально
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // На мобильных иногда нужно "разморозить" контекст
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    source = audioCtx.createMediaStreamSource(mediaStream);
+    analyser = audioCtx.createAnalyser();
+    source.connect(analyser);
+    analyser.fftSize = 256;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    listening = true;
+    micIcon.src = micOnSVG;
+
+    recognition.start();
+    visualizeAudio();
+  } catch (err) {
+    console.error("Ошибка доступа к микрофону:", err);
+    alert("Не удалось получить доступ к микрофону. Проверьте разрешения и HTTPS.");
+  }
+});
+
+function stopListening() {
+  if (recognition) recognition.stop();
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(track => track.stop());
+    mediaStream = null; // обязательно очищаем
+  }
+  listening = false;
+  micIcon.src = micOffSVG;
+  resetSphere();
+}
 
   function resetSphere() {
     sphere.style.width = baseSize + 'px';
