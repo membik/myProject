@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let listening = false;
   let baseSize = parseInt(window.getComputedStyle(sphere).width);
 
+  // Распознавание речи
   let recognition = null;
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -24,71 +25,66 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentAbortController = null;
   let thinking = false;
 
-  // === Генерация уникального ID пользователя для истории чата ===
+  // Генерация userId
   if (!localStorage.getItem("userId")) {
     const newUserId = crypto.randomUUID();
     localStorage.setItem("userId", newUserId);
-    console.log("Создан новый userId:", newUserId);
   }
   const userId = localStorage.getItem("userId");
 
- micBtn.addEventListener('click', async () => {
-  if (listening) {
-    stopListening();
-    return;
-  }
-
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
-    resetSphere();
-  }
-
-  if (currentAbortController) {
-    currentAbortController.abort();
-    currentAbortController = null;
-    thinking = false;
-  }
-
-  try {
-    // Сохраняем поток глобально
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    // На мобильных иногда нужно "разморозить" контекст
-    if (audioCtx.state === 'suspended') {
-      await audioCtx.resume();
+  micBtn.addEventListener('click', async () => {
+    if (listening) {
+      stopListening();
+      return;
     }
 
-    source = audioCtx.createMediaStreamSource(mediaStream);
-    analyser = audioCtx.createAnalyser();
-    source.connect(analyser);
-    analyser.fftSize = 256;
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+      resetSphere();
+    }
+
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+      thinking = false;
+    }
 
     listening = true;
     micIcon.src = micOnSVG;
 
+    // === 1. Запуск распознавания речи ===
     recognition.start();
-    visualizeAudio();
-  } catch (err) {
-    console.error("Ошибка доступа к микрофону:", err);
-    alert("Не удалось получить доступ к микрофону. Проверьте разрешения и HTTPS.");
-  }
-});
 
-function stopListening() {
-  if (recognition) recognition.stop();
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(track => track.stop());
-    mediaStream = null; // обязательно очищаем
+    // === 2. Запуск визуализации (только если поддерживается) ===
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      source = audioCtx.createMediaStreamSource(mediaStream);
+      analyser = audioCtx.createAnalyser();
+      source.connect(analyser);
+      analyser.fftSize = 256;
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      visualizeAudio();
+    } catch (err) {
+      console.warn("Визуализация громкости не доступна:", err);
+    }
+  });
+
+  function stopListening() {
+    if (recognition) recognition.stop();
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+    listening = false;
+    micIcon.src = micOffSVG;
+    resetSphere();
   }
-  listening = false;
-  micIcon.src = micOffSVG;
-  resetSphere();
-}
 
   function resetSphere() {
     sphere.style.width = baseSize + 'px';
@@ -99,12 +95,11 @@ function stopListening() {
   }
 
   function visualizeAudio() {
-    if (!listening) return;
+    if (!listening || !analyser) return;
     requestAnimationFrame(visualizeAudio);
 
     analyser.getByteFrequencyData(dataArray);
-    let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+    let sum = dataArray.reduce((a, b) => a + b, 0);
     let avgVolume = sum / dataArray.length;
 
     const maxSize = baseSize * 1.5;
@@ -146,7 +141,6 @@ function stopListening() {
       thinking = false;
       currentAbortController = null;
 
-      // эффект говорящего ИИ
       sphere.classList.remove('thinking');
       sphere.style.backgroundColor = 'rgb(26, 255, 144)';
       sphere.style.boxShadow = '0 0 25px rgba(26, 255, 144,0.7)';
@@ -168,9 +162,7 @@ function stopListening() {
     } catch (err) {
       thinking = false;
       sphere.classList.remove('thinking');
-      if (err.name === 'AbortError') {
-        console.log("Запрос к ИИ прерван");
-      } else console.error(err);
+      if (err.name !== 'AbortError') console.error(err);
       resetSphere();
     }
   };
