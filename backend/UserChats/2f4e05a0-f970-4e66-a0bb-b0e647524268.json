@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "привет"
+  },
+  {
+    "role": "assistant",
+    "content": "Привет. Как настроение?"
+  },
+  {
+    "role": "user",
+    "content": "да все нормально"
+  },
+  {
+    "role": "assistant",
+    "content": "Тогда всё отлично. Чем займёмся?"
+  },
+  {
+    "role": "user",
+    "content": "привет."
+  },
+  {
+    "role": "assistant",
+    "content": "Привет. Что нового?"
+  }
+]

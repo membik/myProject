@@ -1,0 +1,21 @@
+[
+  {
+    "id": 1,
+    "type": "lecture",
+    "title": "Урок 1: Цвета",
+    "icon": "icon/colors.svg",
+    "text": "Сегодня мы изучим основные цвета: красный, синий, желтый...",
+    "images": ["img/lessons/colors1.png", "img/lessons/colors2.png"]
+  },
+  {
+    "id": 2,
+    "type": "interactive",
+    "title": "Урок 2: Покупки",
+    "icon": "icon/shopping.svg",
+    "text": "Собери покупки в корзину, перетаскивая предметы...",
+    "gameData": {
+      "items": ["img/items/apple.png", "img/items/milk.png"],
+      "target": "img/items/basket.png"
+    }
+  }
+]

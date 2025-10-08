@@ -1,0 +1,354 @@
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    background: linear-gradient(345deg, rgba(10, 19, 33, 1) 0%, rgba(27, 52, 56, 1) 100%);
+    overflow: hidden; /* полностью скрываем скролл */
+    position: relative;
+
+}
+
+#app {
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-height: 80%;
+    box-sizing: border-box;
+}
+
+#micBtn {
+    position: absolute;
+    bottom: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    font-size: 1.5rem;
+    border: none;
+    border-radius: 50px;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+#micBtn > img {
+    filter: invert(1) brightness(80%);
+}
+
+#sphere {
+  position: absolute;       /* важно для центрирования */
+  top: 90%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  background-color: rgb(17, 250, 83);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 20px rgba(110,205,51,0.5);
+  transition: width 0.1s, height 0.1s, background-color 0.1s, box-shadow 0.1s;
+}
+
+button {
+  z-index: 10;
+  position: relative;
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 20px;
+}
+
+nav {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 500px;
+}
+
+.menu {
+  display: flex;
+  justify-content: space-around; 
+  align-items: center;        /* выравниваем все вкладки по центру вертикали */
+  height: 50px;               /* высота меню */
+  padding: 10px 20px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: Arial;
+}
+
+.menu .tab {
+  flex: 1;
+  display: flex;             
+  flex-direction: column;    /* иконка сверху, текст снизу */
+  align-items: center;       /* центрируем по горизонтали */
+  justify-content: center;   /* центрируем по вертикали */
+  gap: 10px;                  /* расстояние между иконкой и текстом */
+  font-size: 12px;           
+  color: #bdbdbd;
+  text-decoration: none;
+  height: 60px;              /* фиксированная высота вкладки */
+  box-sizing: border-box;    /* чтобы паддинги не ломали высоту */
+  transition: transform 0.2s, color 0.3s;
+}
+
+.menu .tab img {
+  display: block;           /* убираем нижние отступы inline-block */
+  max-width: 100%;          /* иконка не вылезет из контейнера */
+  height: auto;             /* сохраняем пропорции */
+  filter: invert(1) brightness(80%);
+}
+
+.menu .tab.active {
+  color: #6ed233;            /* зелёный акцент для активной вкладки */
+  transform: scale(1.2);
+}
+
+.menu .tab .icon {
+    width: 24px;   /* базовый размер, можно переопределять */
+    height: 24px;
+}
+
+.menu .tab .chat-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.menu .tab .avatars-icon {
+    width: 30px;
+    height: 30px;
+}
+
+.menu .tab .learning-icon {
+    width: 30px;
+    height: 30px;
+}
+
+#sphere::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  background: radial-gradient(circle, rgba(110,205,51,0.3) 0%, transparent 70%);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* Пульсация шара при ответе ИИ */
+.speaking {
+  animation: speakPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes speakPulse {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+.page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: translateY(20px); /* сдвиг вниз при скрытии */
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none; 
+}
+
+.page.active {
+  opacity: 1;
+  transform: translateY(0);   /* плавно поднимаем в центр */
+  pointer-events: all;
+}
+
+#avatars {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.avatars-container {
+  max-width: 900px;
+  width: 90%;
+  margin-top: 50px;
+  text-align: left; /* теперь заголовок слева */
+}
+
+.avatars-container h1 {
+  color: #dbdbdb;
+  font-size: 30px;
+  margin: 0 0 30px 25px; /* небольшой отступ слева */
+}
+
+.avatars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 30px;
+  justify-items: center; /* оставляем аватары по центру */
+  width: 100%;
+}
+
+
+
+.avatar {
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px; /* размер эмодзи или картинки */
+  background: rgba(255, 255, 255, 0.1); /* полупрозрачный фон */
+  border-radius: 50%; /* круглые */
+  backdrop-filter: blur(10px); /* эффект “жидкого стекла” */
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  transition: 0.5s;
+}
+
+.avatar:hover {
+  box-shadow: 0px 0px 3px #11fa53;
+  transition: 0.5s;
+  transform: scale(1.1);
+}
+
+.avatar img {
+  width: 70%;       /* чуть меньше круга, чтобы рамка была видна */
+  height: 70%;
+  border-radius: 40%;
+  object-fit: cover; /* обрезаем по кругу, не искажая */
+}
+
+#lessonsGrid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0px;
+  padding: 20px 0;
+}
+
+.lesson-card {
+  width: 80%;
+  max-width: 500px;               /* фиксированная ширина */
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 15px;
+  margin: 15px auto;
+  max-height: 150px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  transition: max-height 0.6s ease, box-shadow 0.4s ease;
+}
+
+.lesson-card.expanded {
+  max-height: 800px;           /* достаточно для раскрытия всего контента */
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+
+.lesson-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.lesson-title {
+  flex: 1;
+  margin-left: 0;
+  color: #dbdbdb;
+}
+
+.lesson-start {
+  font-size: 14px;
+  padding: 6px 10px;
+  margin-left: 15px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 50px;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.3s;
+}
+
+.lesson-start:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.lesson-content {
+  margin-top: 15px;
+  display: none;
+}
+
+.lesson-card.expanded .lesson-content {
+  display: block;
+}
+
+.lesson-pause {
+  display: block;
+  margin: 15px auto 0 auto;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 50px;
+  color: white;
+  font-size: 14px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.3s;
+}
+
+.lesson-pause:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.lesson-images, .lesson-game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.lesson-images img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.learning-container h1 {
+  color: #dbdbdb;
+  font-size: 30px;
+  margin: 0 0 10px 28px; /* небольшой отступ слева */
+  margin-top: 50px;
+  width: 20%; 
+}

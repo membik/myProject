@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ИИ-помощник для детей</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+
+	<main>
+        <section class="page active" id="home">
+            <div id="app">
+                <button id="micBtn">
+                    <img id="micIcon" src="icon/mic.svg" alt="Mic">
+                </button>
+                <div id="sphere"></div>
+            </div>
+        </section>
+
+        <section class="page" id="avatars">
+            <div class="avatars-container">
+                <h1>Образы</h1>
+            <div class="avatars-grid">
+
+            <div class="avatars-grid">
+                <div class="avatar">
+                    <img src="img/avatars/sphere.png" alt="">
+                </div>
+                <div class="avatar">
+                    <img src="img/avatars/sbercat.png" alt="">
+                </div>
+                <div class="avatar">
+                    <img src="img/avatars/sicat.png" alt="">
+                </div>
+                <div class="avatar">
+                    <img src="img/avatars/sicat.png" alt="">
+                </div>
+                <div class="avatar">
+                    <img src="img/avatar3.png" alt="">
+                </div>
+                <div class="avatar">
+                    <img src="img/avatar3.png" alt="">
+                </div>
+            </div>
+        </section>
+
+
+        <section class="page" id="learning">
+            <div class="learning-container">
+                <h1>Обучение</h1>
+                <div class="lessons-grid" id="lessonsGrid">
+                    
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+
+    <nav>
+    <div class="menu"> 
+        <a href="#home" class="tab active" data-page="home">
+            <img class="icon chat-icon" src="icon/chat.svg" alt="Chat">
+            Общение
+        </a>
+        <a href="#avatars" class="tab" data-page="avatars">
+            <img class="icon avatars-icon" src="icon/star.svg" alt="Avatars">
+            Образы
+        </a>
+        <a href="#learning" class="tab" data-page="learning">
+            <img class="icon learning-icon" src="icon/book.svg" alt="Learning">
+            Обучение
+        </a>		
+    </div>
+</nav>
+
+
+    <script src="js/index.js"></script>
+</body>
+</html>
