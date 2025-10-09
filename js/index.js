@@ -19,7 +19,58 @@ document.addEventListener('DOMContentLoaded', () => {
     recognition.onresult = onRecognitionResult;
     recognition.onerror = onRecognitionError;
   } else {
-    alert("Ваш браузер не поддерживает распознавание речи");
+    console.warn("SpeechRecognition не поддерживается — используем Yandex SpeechKit STT");
+
+    // Fallback: запись микрофона и отправка на сервер
+    async function recordAndSendAudio() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
+
+      return new Promise((resolve, reject) => {
+        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          const formData = new FormData();
+          formData.append("audio", blob, "voice.webm");
+
+          try {
+            const response = await fetch('/api/speechToText', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await response.json();
+            if (data.text) resolve(data.text);
+            else reject(data.error || "Ошибка распознавания");
+          } catch (err) {
+            reject(err);
+          }
+        };
+
+        mediaRecorder.start();
+        setTimeout(() => mediaRecorder.stop(), 4000); // запись 4 секунды
+      });
+    }
+
+    // Подменяем поведение кнопки микрофона
+    micBtn.addEventListener('click', async () => {
+      if (listening) {
+        stopListening();
+        return;
+      }
+
+      try {
+        listening = true;
+        micIcon.src = micOnSVG;
+        sphere.style.backgroundColor = '#00FF88';
+        const userMessage = await recordAndSendAudio();
+        stopListening();
+        onRecognitionResult({ results: [[{ transcript: userMessage }]] });
+      } catch (err) {
+        console.error(err);
+        stopListening();
+      }
+    });
   }
 
   let currentAudio = null;
@@ -38,39 +89,32 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    try {
-      // 1. Получаем доступ к микрофону
-      if (!mediaStream) {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      }
+    if (recognition) {
+      try {
+        if (!mediaStream) {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') await audioCtx.resume();
+        }
 
-      // 2. Создаём аудиоконтекст
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') await audioCtx.resume();
-      }
+        source = audioCtx.createMediaStreamSource(mediaStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        source.connect(analyser);
 
-      source = audioCtx.createMediaStreamSource(mediaStream);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-      source.connect(analyser);
+        listening = true;
+        micIcon.src = micOnSVG;
 
-      listening = true;
-      micIcon.src = micOnSVG;
-
-      // 3. Запускаем визуализацию
-      visualizeAudio();
-
-      // 4. Старт recognition без лишних await между user gesture и start
-      if (recognition) {
+        visualizeAudio();
         recognition.start();
+      } catch (err) {
+        console.error("Ошибка доступа к микрофону:", err);
+        listening = false;
+        micIcon.src = micOffSVG;
       }
-
-    } catch (err) {
-      console.error("Ошибка доступа к микрофону:", err);
-      listening = false;
-      micIcon.src = micOffSVG;
     }
   });
 
@@ -93,15 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function visualizeAudio() {
     if (!listening || !analyser) return;
     requestAnimationFrame(visualizeAudio);
-
     analyser.getByteFrequencyData(dataArray);
     const avgVolume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-
     const maxSize = baseSize * 1.5;
     const size = Math.min(maxSize, baseSize + avgVolume / 2);
     sphere.style.width = size + 'px';
     sphere.style.height = size + 'px';
-
     const lightness = Math.min(70, 50 + avgVolume / 3);
     sphere.style.backgroundColor = `hsl(120,70%,${lightness}%)`;
     sphere.style.boxShadow = `0 0 ${avgVolume/2}px hsl(120,70%,${lightness}%)`;
@@ -153,13 +194,11 @@ document.addEventListener('DOMContentLoaded', () => {
           currentAudio = null;
         };
       } else resetSphere();
-
     } catch (err) {
       thinking = false;
       sphere.classList.remove('thinking');
-      if (err.name === 'AbortError') {
-        console.log("Запрос к ИИ прерван");
-      } else console.error(err);
+      if (err.name === 'AbortError') console.log("Запрос к ИИ прерван");
+      else console.error(err);
       resetSphere();
     }
   }
@@ -172,22 +211,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Переход между вкладками ===
   const tabs = document.querySelectorAll('.menu .tab');
   const pages = document.querySelectorAll('.page');
-
   tabs.forEach(tab => {
     tab.addEventListener('click', (e) => {
       e.preventDefault();
       const targetPage = tab.dataset.page;
-
       tabs.forEach(t => t.classList.remove('active', 'chat-tab', 'avatars-tab', 'learning-tab'));
       tab.classList.add('active');
       if (targetPage === 'home') tab.classList.add('chat-tab');
       if (targetPage === 'avatars') tab.classList.add('avatars-tab');
       if (targetPage === 'learning') tab.classList.add('learning-tab');
-
-      pages.forEach(page => {
-        if (page.id === targetPage) page.classList.add('active');
-        else page.classList.remove('active');
-      });
+      pages.forEach(page => page.id === targetPage ? page.classList.add('active') : page.classList.remove('active'));
     });
   });
 
@@ -225,7 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const startBtn = card.querySelector('.lesson-start');
       const pauseBtn = card.querySelector('.lesson-pause');
       const content = card.querySelector('.lesson-content');
-
       let audio = null;
       let paused = false;
 
@@ -261,8 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       pauseBtn.addEventListener('click', () => {
         if (!audio) return;
-        if (paused) { audio.play(); paused = false; }
-        else { audio.pause(); paused = true; }
+        paused ? (audio.play(), paused = false) : (audio.pause(), paused = true);
       });
     });
   }

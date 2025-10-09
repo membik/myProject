@@ -130,6 +130,39 @@ async function synthesizeSpeech(text, voice = 'oksana') {
   }
 }
 
+import multer from 'multer';
+const upload = multer(); // для обработки multipart/form-data
+
+// ======== API распознавания речи через Yandex SpeechKit ========
+app.post('/api/speechToText', upload.single('audio'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Нет аудиофайла' });
+
+  try {
+    const response = await fetch(
+      `https://stt.api.cloud.yandex.net/speech/v1/stt:recognize?folderId=${process.env.YANDEX_FOLDER_ID}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Api-Key ${process.env.YANDEX_API_KEY}`,
+          'Content-Type': 'application/octet-stream'
+        },
+        body: req.file.buffer
+      }
+    );
+
+    const data = await response.json();
+
+    if (data.error_code) {
+      return res.status(500).json({ error: data.error_message || 'Ошибка распознавания' });
+    }
+
+    res.json({ text: data.result });
+  } catch (err) {
+    console.error("Ошибка SpeechKit STT:", err.message);
+    res.status(500).json({ error: 'Ошибка распознавания' });
+  }
+});
+
 // ======== API для чата (GigaChat + озвучка) ========
 app.post('/api/sendMessage', async (req, res) => {
   const { userId, message, voice } = req.body;
