@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     recognition = new SpeechRecognition();
     recognition.lang = 'ru-RU';
     recognition.interimResults = false;
-    recognition.continuous = false;
+    recognition.continuous = false; // останавливается после результата
   } else {
     alert("Ваш браузер не поддерживает распознавание речи");
   }
@@ -28,32 +28,35 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentAudio = null;
   let currentAbortController = null;
   let thinking = false;
+  let streamInitialized = false; // новый флаг, чтобы init происходил только 1 раз
 
   // Генерация уникального ID пользователя
   if (!localStorage.getItem("userId")) {
     const newUserId = crypto.randomUUID();
     localStorage.setItem("userId", newUserId);
-    console.log("Создан новый userId:", newUserId);
   }
   const userId = localStorage.getItem("userId");
 
-  // Инициализация микрофона (для мобильных устройств)
   async function initMic() {
+    if (streamInitialized) return; // уже инициализировано
+
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') await audioCtx.resume();
 
       source = audioCtx.createMediaStreamSource(mediaStream);
+
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
       dataArray = new Uint8Array(analyser.frequencyBinCount);
+
       source.connect(analyser);
 
-      return true;
+      streamInitialized = true;
     } catch (err) {
       console.error("Ошибка доступа к микрофону:", err);
-      return false;
     }
   }
 
@@ -63,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Прерываем текущее воспроизведение ИИ
+    // Если воспроизводится аудио ИИ, прерываем его
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
@@ -77,21 +80,19 @@ document.addEventListener('DOMContentLoaded', () => {
       resetSphere();
     }
 
-    // На мобильных устройствах инициализируем микрофон отдельно
-    if (isMobile) {
-      const micReady = await initMic();
-      if (!micReady) return;
-    }
+    await initMic(); // инициализируем микрофон один раз
+
+    if (!mediaStream) return; // если не удалось получить микрофон
 
     listening = true;
     micIcon.src = micOnSVG;
     visualizeAudio();
+
     recognition.start();
   });
 
   function stopListening() {
     if (recognition) recognition.stop();
-    if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
     listening = false;
     micIcon.src = micOffSVG;
     resetSphere();
@@ -171,9 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       thinking = false;
       sphere.classList.remove('thinking');
-      if (err.name === 'AbortError') {
-        console.log("Запрос к ИИ прерван");
-      } else console.error(err);
+      if (err.name === 'AbortError') console.log("Запрос к ИИ прерван");
+      else console.error(err);
       resetSphere();
     }
   };
