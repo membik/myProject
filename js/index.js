@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let recognition = null;
   const isWebSpeechSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 
-  // Идентификатор пользователя
+  // Уникальный ID пользователя
   if (!localStorage.getItem("userId")) localStorage.setItem("userId", crypto.randomUUID());
   const userId = localStorage.getItem("userId");
 
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentAbortController = null;
   let thinking = false;
 
-  // ================== Функции ==================
+  // ======== Сброс сферы ========
   function resetSphere() {
     sphere.style.width = baseSize + 'px';
     sphere.style.height = baseSize + 'px';
@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sphere.classList.remove('speaking', 'thinking');
   }
 
+  // ======== Визуализация аудио ========
   function visualizeAudio() {
     if (!listening || !analyser) return;
     requestAnimationFrame(visualizeAudio);
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sphere.style.boxShadow = `0 0 ${avgVolume/2}px hsl(120,70%,${lightness}%)`;
   }
 
+  // ======== Анимация мышления ========
   function showThinkingAnimation() {
     if (!thinking) return;
     sphere.classList.add('thinking');
@@ -55,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(showThinkingAnimation);
   }
 
+  // ======== Отправка текста на сервер ========
   async function sendMessageToServer(text) {
     thinking = true;
     showThinkingAnimation();
@@ -91,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ======== Стоп микрофона ========
   function stopListening() {
     if (recognition) recognition.stop();
     if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
@@ -99,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resetSphere();
   }
 
-  // ================== Fallback запись аудио ==================
+  // ======== Fallback запись аудио (Yandex STT) ========
   async function recordAndSendAudio(duration = 4000) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream);
@@ -113,10 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append("file", blob, "voice.webm");
 
         try {
-          const response = await fetch('/api/speechToText', {
-            method: 'POST',
-            body: formData
-          });
+          const response = await fetch('/api/speechToText', { method: 'POST', body: formData });
           const data = await response.json();
           if (data.text) resolve(data.text);
           else reject(data.error || "Ошибка распознавания");
@@ -128,11 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ======== Обработка клика микрофона ========
   async function handleMicClick() {
-    if (listening) {
-      stopListening();
-      return;
-    }
+    if (listening) { stopListening(); return; }
 
     listening = true;
     micIcon.src = micOnSVG;
@@ -149,11 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
       dataArray = new Uint8Array(analyser.frequencyBinCount);
       source.connect(analyser);
       visualizeAudio();
-    } catch (err) {
-      console.error("Ошибка аудиоконтекста:", err);
-    }
+    } catch (err) { console.error("Ошибка аудиоконтекста:", err); }
 
-    // Основной поток распознавания
     try {
       if (isWebSpeechSupported) {
         recognition.start();
@@ -169,28 +165,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ================== Web Speech API ==================
+  // ======== Web Speech API ========
   if (isWebSpeechSupported) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.lang = 'ru-RU';
     recognition.interimResults = false;
 
-    recognition.onresult = (event) => {
+    recognition.onresult = event => {
       const userMessage = event.results[0][0].transcript;
       stopListening();
       sendMessageToServer(userMessage);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = event => {
       console.error("Ошибка распознавания речи:", event.error);
       stopListening();
+    };
+
+    recognition.onend = () => {
+      // Чтобы повторно можно было кликнуть микрофон на мобильных
+      listening = false;
+      micIcon.src = micOffSVG;
+      if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
     };
   }
 
   micBtn.addEventListener('click', handleMicClick);
 
-  // ================== Переход между вкладками ==================
+  // ======== Переход между вкладками ========
   const tabs = document.querySelectorAll('.menu .tab');
   const pages = document.querySelectorAll('.page');
   tabs.forEach(tab => {
@@ -211,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ================== Загрузка уроков ==================
+  // ======== Уроки ========
   let currentLessonCard = null;
   let currentLessonAudio = null;
 
