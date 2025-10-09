@@ -10,91 +10,79 @@ document.addEventListener('DOMContentLoaded', () => {
   let listening = false;
   let baseSize = parseInt(window.getComputedStyle(sphere).width);
 
-  let recognition = null;
-  const isWebSpeechSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  // Определение мобильного устройства
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  // Уникальный ID пользователя
-  if (!localStorage.getItem("userId")) localStorage.setItem("userId", crypto.randomUUID());
-  const userId = localStorage.getItem("userId");
+  // Распознавание речи
+  let recognition = null;
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'ru-RU';
+    recognition.interimResults = false;
+    recognition.continuous = false; // Останавливается после результата
+  } else {
+    alert("Ваш браузер не поддерживает распознавание речи");
+  }
 
   let currentAudio = null;
   let currentAbortController = null;
   let thinking = false;
 
-  // ======== Сброс сферы ========
-  function resetSphere() {
-    sphere.style.width = baseSize + 'px';
-    sphere.style.height = baseSize + 'px';
-    sphere.style.backgroundColor = 'rgb(17, 250, 83)';
-    sphere.style.boxShadow = '0 0 20px rgba(17, 250, 83,0.5)';
-    sphere.classList.remove('speaking', 'thinking');
+  // Генерация уникального ID пользователя
+  if (!localStorage.getItem("userId")) {
+    const newUserId = crypto.randomUUID();
+    localStorage.setItem("userId", newUserId);
+    console.log("Создан новый userId:", newUserId);
   }
+  const userId = localStorage.getItem("userId");
 
-  // ======== Визуализация аудио ========
-  function visualizeAudio() {
-    if (!listening || !analyser) return;
-    requestAnimationFrame(visualizeAudio);
+  micBtn.addEventListener('click', async () => {
+    if (listening) {
+      stopListening();
+      return;
+    }
 
-    analyser.getByteFrequencyData(dataArray);
-    const avgVolume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-
-    const maxSize = baseSize * 1.5;
-    const size = Math.min(maxSize, baseSize + avgVolume / 2);
-    sphere.style.width = size + 'px';
-    sphere.style.height = size + 'px';
-
-    const lightness = Math.min(70, 50 + avgVolume / 3);
-    sphere.style.backgroundColor = `hsl(120,70%,${lightness}%)`;
-    sphere.style.boxShadow = `0 0 ${avgVolume/2}px hsl(120,70%,${lightness}%)`;
-  }
-
-  // ======== Анимация мышления ========
-  function showThinkingAnimation() {
-    if (!thinking) return;
-    sphere.classList.add('thinking');
-    sphere.style.backgroundColor = 'rgb(5, 229, 203)';
-    sphere.style.boxShadow = '0 0 25px rgba(5, 229, 203,0.7)';
-    requestAnimationFrame(showThinkingAnimation);
-  }
-
-  // ======== Отправка текста на сервер ========
-  async function sendMessageToServer(text) {
-    thinking = true;
-    showThinkingAnimation();
-    currentAbortController = new AbortController();
-
-    try {
-      const response = await fetch('/api/sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, message: text, voice: 'oksana' }),
-        signal: currentAbortController.signal
-      });
-      const data = await response.json();
-      thinking = false;
-      currentAbortController = null;
-
-      sphere.classList.remove('thinking');
-      sphere.style.backgroundColor = 'rgb(26, 255, 144)';
-      sphere.style.boxShadow = '0 0 25px rgba(26, 255, 144,0.7)';
-      sphere.classList.add('speaking');
-
-      if (data.audio) {
-        if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
-        currentAudio = new Audio("data:audio/mp3;base64," + data.audio);
-        currentAudio.play();
-        currentAudio.onended = () => { resetSphere(); currentAudio = null; };
-      } else resetSphere();
-
-    } catch (err) {
-      thinking = false;
-      sphere.classList.remove('thinking');
-      if (err.name !== 'AbortError') console.error(err);
+    // Если воспроизводится аудио ИИ, прерываем его
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
       resetSphere();
     }
-  }
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+      thinking = false;
+      resetSphere();
+    }
 
-  // ======== Стоп микрофона ========
+    try {
+      // Мобильные устройства могут требовать user gesture для AudioContext
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      source = audioCtx.createMediaStreamSource(mediaStream);
+
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      source.connect(analyser);
+
+      listening = true;
+      micIcon.src = micOnSVG;
+
+      visualizeAudio();
+
+      recognition.start();
+    } catch (err) {
+      console.error("Ошибка доступа к микрофону:", err);
+    }
+  });
+
   function stopListening() {
     if (recognition) recognition.stop();
     if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
@@ -103,101 +91,100 @@ document.addEventListener('DOMContentLoaded', () => {
     resetSphere();
   }
 
-  // ======== Fallback запись аудио (Yandex STT) ========
-  async function recordAndSendAudio(duration = 4000) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    const chunks = [];
-
-    return new Promise((resolve, reject) => {
-      mediaRecorder.ondataavailable = e => chunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append("file", blob, "voice.webm");
-
-        try {
-          const response = await fetch('/api/speechToText', { method: 'POST', body: formData });
-          const data = await response.json();
-          if (data.text) resolve(data.text);
-          else reject(data.error || "Ошибка распознавания");
-        } catch (err) { reject(err); }
-      };
-
-      mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), duration);
-    });
+  function resetSphere() {
+    sphere.style.width = baseSize + 'px';
+    sphere.style.height = baseSize + 'px';
+    sphere.style.backgroundColor = 'rgb(17, 250, 83)';
+    sphere.style.boxShadow = '0 0 20px rgba(17, 250, 83,0.5)';
+    sphere.classList.remove('speaking', 'thinking');
   }
 
-  // ======== Обработка клика микрофона ========
-  async function handleMicClick() {
-    if (listening) { stopListening(); return; }
+  function visualizeAudio() {
+    if (!listening || !analyser) return;
+    requestAnimationFrame(visualizeAudio);
 
-    listening = true;
-    micIcon.src = micOnSVG;
+    analyser.getByteFrequencyData(dataArray);
+    const avgVolume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
-    // Аудио визуализация
+    const maxSize = baseSize * (isMobile ? 1.8 : 1.5);
+    const size = Math.min(maxSize, baseSize + avgVolume / 2);
+    sphere.style.width = size + 'px';
+    sphere.style.height = size + 'px';
+
+    const lightness = Math.min(70, 50 + avgVolume / 3);
+    sphere.style.backgroundColor = `hsl(120,70%,${lightness}%)`;
+    sphere.style.boxShadow = `0 0 ${avgVolume / 2}px hsl(120,70%,${lightness}%)`;
+  }
+
+  function showThinkingAnimation() {
+    if (!thinking) return;
+    sphere.classList.add('thinking');
+    sphere.style.backgroundColor = 'rgb(5, 229, 203)';
+    sphere.style.boxShadow = '0 0 25px rgba(5, 229, 203,0.7)';
+    requestAnimationFrame(showThinkingAnimation);
+  }
+
+  recognition.onresult = async (event) => {
+    const userMessage = event.results[0][0].transcript;
+    stopListening();
+
     try {
-      if (!mediaStream) mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') await audioCtx.resume();
+      thinking = true;
+      showThinkingAnimation();
 
-      source = audioCtx.createMediaStreamSource(mediaStream);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-      source.connect(analyser);
-      visualizeAudio();
-    } catch (err) { console.error("Ошибка аудиоконтекста:", err); }
+      currentAbortController = new AbortController();
 
-    try {
-      if (isWebSpeechSupported) {
-        recognition.start();
-      } else {
-        sphere.style.backgroundColor = '#00FF88';
-        const text = await recordAndSendAudio();
-        stopListening();
-        sendMessageToServer(text);
-      }
+      const response = await fetch('/api/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, message: userMessage, voice: 'oksana' }),
+        signal: currentAbortController.signal
+      });
+
+      const data = await response.json();
+      thinking = false;
+      currentAbortController = null;
+
+      // Эффект говорящего ИИ
+      sphere.classList.remove('thinking');
+      sphere.style.backgroundColor = 'rgb(26, 255, 144)';
+      sphere.style.boxShadow = '0 0 25px rgba(26, 255, 144,0.7)';
+      sphere.classList.add('speaking');
+
+      if (data.audio) {
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+        currentAudio = new Audio("data:audio/mp3;base64," + data.audio);
+        currentAudio.play();
+        currentAudio.onended = () => {
+          resetSphere();
+          currentAudio = null;
+        };
+      } else resetSphere();
+
     } catch (err) {
-      console.error(err);
-      stopListening();
+      thinking = false;
+      sphere.classList.remove('thinking');
+      if (err.name === 'AbortError') {
+        console.log("Запрос к ИИ прерван");
+      } else console.error(err);
+      resetSphere();
     }
-  }
+  };
 
-  // ======== Web Speech API ========
-  if (isWebSpeechSupported) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.lang = 'ru-RU';
-    recognition.interimResults = false;
+  recognition.onerror = (event) => {
+    console.error("Ошибка распознавания речи:", event.error);
+    stopListening();
+  };
 
-    recognition.onresult = event => {
-      const userMessage = event.results[0][0].transcript;
-      stopListening();
-      sendMessageToServer(userMessage);
-    };
-
-    recognition.onerror = event => {
-      console.error("Ошибка распознавания речи:", event.error);
-      stopListening();
-    };
-
-    recognition.onend = () => {
-      // Чтобы повторно можно было кликнуть микрофон на мобильных
-      listening = false;
-      micIcon.src = micOffSVG;
-      if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
-    };
-  }
-
-  micBtn.addEventListener('click', handleMicClick);
-
-  // ======== Переход между вкладками ========
+  // === Переход между вкладками ===
   const tabs = document.querySelectorAll('.menu .tab');
   const pages = document.querySelectorAll('.page');
+
   tabs.forEach(tab => {
-    tab.addEventListener('click', e => {
+    tab.addEventListener('click', (e) => {
       e.preventDefault();
       const targetPage = tab.dataset.page;
 
@@ -214,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ======== Уроки ========
+  // ==================== Загрузка уроков ====================
   let currentLessonCard = null;
   let currentLessonAudio = null;
 
@@ -273,7 +260,10 @@ document.addEventListener('DOMContentLoaded', () => {
             audio.play();
             currentLessonAudio = audio;
           }
-        } else if (!paused) { audio.play(); currentLessonAudio = audio; }
+        } else if (!paused) {
+          audio.play();
+          currentLessonAudio = audio;
+        }
 
         if (lesson.type === 'interactive' && card.querySelector('.lesson-game').childElementCount === 0) {
           createInteractiveGame(card.querySelector('.lesson-game'), lesson.gameData);
@@ -282,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       pauseBtn.addEventListener('click', () => {
         if (!audio) return;
-        if (paused) { audio.play(); paused = false; currentLessonAudio = audio; }
+        if (paused) { audio.play(); paused = false; }
         else { audio.pause(); paused = true; }
       });
     });
