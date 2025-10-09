@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     recognition = new SpeechRecognition();
     recognition.lang = 'ru-RU';
     recognition.interimResults = false;
-    recognition.continuous = false; // Останавливается после результата
+    recognition.continuous = false;
   } else {
     alert("Ваш браузер не поддерживает распознавание речи");
   }
@@ -37,13 +37,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const userId = localStorage.getItem("userId");
 
+  // Инициализация микрофона (для мобильных устройств)
+  async function initMic() {
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      source = audioCtx.createMediaStreamSource(mediaStream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+      source.connect(analyser);
+
+      return true;
+    } catch (err) {
+      console.error("Ошибка доступа к микрофону:", err);
+      return false;
+    }
+  }
+
   micBtn.addEventListener('click', async () => {
     if (listening) {
       stopListening();
       return;
     }
 
-    // Если воспроизводится аудио ИИ, прерываем его
+    // Прерываем текущее воспроизведение ИИ
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
@@ -57,30 +77,16 @@ document.addEventListener('DOMContentLoaded', () => {
       resetSphere();
     }
 
-    try {
-      // Мобильные устройства могут требовать user gesture для AudioContext
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') await audioCtx.resume();
-
-      source = audioCtx.createMediaStreamSource(mediaStream);
-
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-      source.connect(analyser);
-
-      listening = true;
-      micIcon.src = micOnSVG;
-
-      visualizeAudio();
-
-      recognition.start();
-    } catch (err) {
-      console.error("Ошибка доступа к микрофону:", err);
+    // На мобильных устройствах инициализируем микрофон отдельно
+    if (isMobile) {
+      const micReady = await initMic();
+      if (!micReady) return;
     }
+
+    listening = true;
+    micIcon.src = micOnSVG;
+    visualizeAudio();
+    recognition.start();
   });
 
   function stopListening() {
@@ -145,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
       thinking = false;
       currentAbortController = null;
 
-      // Эффект говорящего ИИ
       sphere.classList.remove('thinking');
       sphere.style.backgroundColor = 'rgb(26, 255, 144)';
       sphere.style.boxShadow = '0 0 25px rgba(26, 255, 144,0.7)';
@@ -163,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
           currentAudio = null;
         };
       } else resetSphere();
-
     } catch (err) {
       thinking = false;
       sphere.classList.remove('thinking');
