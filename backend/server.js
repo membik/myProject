@@ -6,7 +6,10 @@ import fetch from 'node-fetch';
 import https from 'https';
 import path from 'path';
 import fs from 'fs';
+import multer from 'multer';
 import { fileURLToPath } from 'url';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
 
 // ======== Настройка окружения ========
 const __filename = fileURLToPath(import.meta.url);
@@ -17,16 +20,41 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../')));
 
-const PORT = process.env.PORT || 8080; // Railway подставит свой порт
+const upload = multer(); // для загрузки аудио
+const PORT = process.env.PORT || 8080;
 const USER_CHATS_DIR = path.join(__dirname, 'UserChats');
 
-// ======== Создаём папку для истории чатов, если нет ========
+// ======== Проверка YANDEX_API_KEY ========
+const YANDEX_KEY = process.env.YANDEX_API_KEY || null;
+if (!YANDEX_KEY) {
+  console.error('FATAL: YANDEX_API_KEY не задан. Установите переменную окружения YANDEX_API_KEY в .env');
+  process.exit(1);
+}
+const maskedKey = YANDEX_KEY.length > 8 ? `${YANDEX_KEY.slice(0,4)}...${YANDEX_KEY.slice(-4)}` : '***';
+console.log('YANDEX_API_KEY обнаружен (masked):', maskedKey);
+
+// ======== Папка для истории чатов ========
 if (!fs.existsSync(USER_CHATS_DIR)) fs.mkdirSync(USER_CHATS_DIR, { recursive: true });
 
 // ======== HTTPS Agent для самоподписанных сертификатов ========
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
-// ======== GigaChat: получение access token ========
+// ======== Работа с историей чатов ========
+function getUserHistoryFile(userId) {
+  return path.join(USER_CHATS_DIR, `${userId}.json`);
+}
+
+function readHistory(userId) {
+  const file = getUserHistoryFile(userId);
+  if (!fs.existsSync(file)) return [];
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function writeHistory(userId, history) {
+  fs.writeFileSync(getUserHistoryFile(userId), JSON.stringify(history, null, 2));
+}
+
+// ======== GigaChat ========
 async function getAccessToken() {
   const clientId = process.env.CLIENT_ID;
   const clientSecret = process.env.CLIENT_SECRET;
@@ -60,22 +88,6 @@ async function getAccessToken() {
   }
 }
 
-// ======== Работа с историей чатов ========
-function getUserHistoryFile(userId) {
-  return path.join(USER_CHATS_DIR, `${userId}.json`);
-}
-
-function readHistory(userId) {
-  const file = getUserHistoryFile(userId);
-  if (!fs.existsSync(file)) return [];
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
-}
-
-function writeHistory(userId, history) {
-  fs.writeFileSync(getUserHistoryFile(userId), JSON.stringify(history, null, 2));
-}
-
-// ======== Отправка сообщений в GigaChat ========
 async function sendMessageToGigaChat(history) {
   const token = await getAccessToken();
   if (!token) return "Извини, ИИ сейчас недоступен.";
@@ -104,21 +116,22 @@ async function sendMessageToGigaChat(history) {
   }
 }
 
-// ======== Синтез речи через Yandex TTS ========
+// ======== Синтез речи ========
 async function synthesizeSpeech(text, voice = 'oksana') {
   try {
     const res = await fetch('https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize', {
       method: 'POST',
       headers: {
-        'Authorization': `Api-Key ${process.env.YANDEX_API_KEY}`,
+        'Authorization': `Api-Key ${YANDEX_KEY}`,
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: new URLSearchParams({ text, voice, format: 'mp3' })
+      body: new URLSearchParams({ text, voice, format: 'mp3' }),
+      agent: httpsAgent
     });
 
     if (!res.ok) {
-      const error = await res.json();
-      console.error("Ошибка синтеза речи:", error);
+      const errBody = await res.text();
+      console.error("Ошибка синтеза речи:", res.status, errBody);
       return null;
     }
 
@@ -130,10 +143,65 @@ async function synthesizeSpeech(text, voice = 'oksana') {
   }
 }
 
-// ======== API для чата (GigaChat + озвучка) ========
+// ======== Распознавание речи ========
+async function convertToOgg(buffer) {
+  const tempInput = path.join(USER_CHATS_DIR, `input-${crypto.randomUUID()}.webm`);
+  const tempOutput = path.join(USER_CHATS_DIR, `output-${crypto.randomUUID()}.ogg`);
+  fs.writeFileSync(tempInput, buffer);
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(tempInput)
+      .setFfmpegPath(ffmpegPath)
+      .outputOptions(['-c:a libopus'])
+      .save(tempOutput)
+      .on('end', () => {
+        const oggBuffer = fs.readFileSync(tempOutput);
+        fs.unlinkSync(tempInput);
+        fs.unlinkSync(tempOutput);
+        resolve(oggBuffer);
+      })
+      .on('error', err => {
+        fs.unlinkSync(tempInput);
+        reject(err);
+      });
+  });
+}
+
+async function recognizeSpeech(audioBuffer) {
+  try {
+    const oggBuffer = await convertToOgg(audioBuffer);
+
+    const res = await fetch('https://stt.api.cloud.yandex.net/speech/v1/stt:recognize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Api-Key ${YANDEX_KEY}`,
+        'Content-Type': 'audio/ogg;codecs=opus'
+      },
+      body: oggBuffer,
+      agent: httpsAgent
+    });
+
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      if (data.result) return data.result;
+      console.error('STT вернул ошибку:', data);
+      return null;
+    } catch (e) {
+      console.error('Неправильный ответ от STT (не JSON):', text);
+      return null;
+    }
+  } catch (err) {
+    console.error("Ошибка распознавания речи:", err.message);
+    return null;
+  }
+}
+
+// ======== API ========
 app.post('/api/sendMessage', async (req, res) => {
   const { userId, message, voice } = req.body;
-  if (!message || !userId) return res.status(400).json({ reply: "Сообщение пустое или нет userId" });
+  if (!message || !userId)
+    return res.status(400).json({ reply: "Сообщение пустое или нет userId" });
 
   const history = readHistory(userId);
   history.push({ role: 'user', content: message });
@@ -146,7 +214,6 @@ app.post('/api/sendMessage', async (req, res) => {
   res.json({ reply: replyText, audio: audioBase64 });
 });
 
-// ======== API для озвучки уроков (без GigaChat) ========
 app.post('/api/tts', async (req, res) => {
   const { text, voice } = req.body;
   if (!text) return res.status(400).json({ error: 'Нет текста для синтеза' });
@@ -157,12 +224,21 @@ app.post('/api/tts', async (req, res) => {
   res.json({ audio: audioBase64 });
 });
 
+app.post('/api/stt', upload.single('audio'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Нет аудиофайла' });
+
+  const text = await recognizeSpeech(req.file.buffer);
+  if (!text) return res.status(500).json({ error: 'Ошибка распознавания речи' });
+
+  res.json({ text });
+});
+
 // ======== Главная страница ========
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../index.html'));
 });
 
-// ======== Запуск сервера ========
+// ======== Запуск ========
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Сервер запущен на порту ${PORT}`);
 });
