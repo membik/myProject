@@ -1,10 +1,4 @@
-// ===================== server.js =====================
-// ВСЕГДА в самом начале
 import 'dotenv/config';
-
-console.log("YANDEX_API_KEY:", process.env.YANDEX_API_KEY);
-console.log("YANDEX_FOLDER_ID:", process.env.YANDEX_FOLDER_ID);
-
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
@@ -13,8 +7,8 @@ import https from 'https';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import multer from 'multer';
 
+// ======== Настройка окружения ========
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -23,15 +17,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../')));
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080; // Railway подставит свой порт
 const USER_CHATS_DIR = path.join(__dirname, 'UserChats');
 
+// ======== Создаём папку для истории чатов, если нет ========
 if (!fs.existsSync(USER_CHATS_DIR)) fs.mkdirSync(USER_CHATS_DIR, { recursive: true });
 
-// HTTPS агент для самоподписанных сертификатов
+// ======== HTTPS Agent для самоподписанных сертификатов ========
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
-// ======== GigaChat: получение токена ========
+// ======== GigaChat: получение access token ========
 async function getAccessToken() {
   const clientId = process.env.CLIENT_ID;
   const clientSecret = process.env.CLIENT_SECRET;
@@ -109,13 +104,8 @@ async function sendMessageToGigaChat(history) {
   }
 }
 
-// ======== Yandex TTS ========
+// ======== Синтез речи через Yandex TTS ========
 async function synthesizeSpeech(text, voice = 'oksana') {
-  if (!process.env.YANDEX_API_KEY) {
-    console.error("YANDEX_API_KEY не задан!");
-    return null;
-  }
-
   try {
     const res = await fetch('https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize', {
       method: 'POST',
@@ -140,40 +130,7 @@ async function synthesizeSpeech(text, voice = 'oksana') {
   }
 }
 
-// ======== Yandex STT ========
-const upload = multer();
-app.post('/api/speechToText', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Нет аудиофайла' });
-  if (!process.env.YANDEX_API_KEY || !process.env.YANDEX_FOLDER_ID) {
-    return res.status(500).json({ error: 'YANDEX_API_KEY или YANDEX_FOLDER_ID не заданы' });
-  }
-
-  try {
-    const response = await fetch(
-      `https://stt.api.cloud.yandex.net/speech/v1/stt:recognize?folderId=${process.env.YANDEX_FOLDER_ID}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Api-Key ${process.env.YANDEX_API_KEY}`,
-          'Content-Type': 'application/octet-stream'
-        },
-        body: req.file.buffer
-      }
-    );
-
-    const data = await response.json();
-    if (data.error_code) {
-      return res.status(500).json({ error: data.error_message || 'Ошибка распознавания' });
-    }
-
-    res.json({ text: data.result });
-  } catch (err) {
-    console.error("Ошибка SpeechKit STT:", err.message);
-    res.status(500).json({ error: 'Ошибка распознавания' });
-  }
-});
-
-// ======== API для чата ========
+// ======== API для чата (GigaChat + озвучка) ========
 app.post('/api/sendMessage', async (req, res) => {
   const { userId, message, voice } = req.body;
   if (!message || !userId) return res.status(400).json({ reply: "Сообщение пустое или нет userId" });
@@ -189,7 +146,7 @@ app.post('/api/sendMessage', async (req, res) => {
   res.json({ reply: replyText, audio: audioBase64 });
 });
 
-// ======== API для уроков (TTS) ========
+// ======== API для озвучки уроков (без GigaChat) ========
 app.post('/api/tts', async (req, res) => {
   const { text, voice } = req.body;
   if (!text) return res.status(400).json({ error: 'Нет текста для синтеза' });
