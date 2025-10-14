@@ -19,6 +19,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../')));
+app.use('/lessons', express.static(path.join(__dirname, 'lessons')));
 
 const upload = multer(); // для загрузки аудио
 const PORT = process.env.PORT || 8080;
@@ -92,6 +93,23 @@ async function sendMessageToGigaChat(history) {
   const token = await getAccessToken();
   if (!token) return "Извини, ИИ сейчас недоступен.";
 
+  // 🧠 Системный промпт для голосового общения
+  const systemPrompt = {
+    role: "system",
+    content: `
+Ты голосовой собеседник. 
+Отвечай естественно, доброжелательно, простыми словами, как человек.
+Не читай вслух символы, эмодзи, решётки, знаки препинания или форматирование Markdown.
+Если встречаются списки, заменяй пункты на естественные фразы: 
+"во-первых", "во-вторых", "также", "и наконец".
+Если видишь код, кавычки, HTML или технические символы — не произноси их, просто перескажи смысл.
+Избегай сухих фраз типа "пункт один" — говори плавно, с интонацией.
+Ты знаешь, что пользователь говорит с тобой голосом, и отвечаешь ему голосом тоже.
+`
+  };
+
+  const finalMessages = [systemPrompt, ...history];
+
   try {
     const res = await fetch('https://gigachat.devices.sberbank.ru/api/v1/chat/completions', {
       method: 'POST',
@@ -101,7 +119,7 @@ async function sendMessageToGigaChat(history) {
       },
       body: JSON.stringify({
         model: 'GigaChat',
-        messages: history,
+        messages: finalMessages,
         stream: false,
         repetition_penalty: 1
       }),

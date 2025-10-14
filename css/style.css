@@ -135,6 +135,25 @@ nav {
     height: 30px;
 }
 
+/* Разрешаем скролл только у страницы "Обучение" */
+#learning.page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto; /* включаем вертикальный скролл */
+  -webkit-overflow-scrolling: touch; /* плавный скролл на мобилках */
+  padding-bottom: 100px; /* чтобы не перекрывалось нижним меню */
+  box-sizing: border-box;
+}
+
+/* скрываем стандартный скроллбар (по желанию) */
+#learning::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
+}
+
 #sphere::after {
   content: "";
   position: absolute;
@@ -258,9 +277,10 @@ nav {
 .learning-container h1 {
     width: 100%;           /* заголовок занимает ширину карточек */
     max-width: 450px;      /* та же ширина, что у карточек */
-    margin: 0 -30px 20px 0;    /* нижний отступ */
+    margin: 0 25px 20px 0;    /* нижний отступ */
     color: #dbdbdb;
     font-size: 30px;
+    z-index: 2;
 }
 
 #lessonsGrid {
@@ -273,21 +293,21 @@ nav {
 }
 
 .lesson-card {
-  width: 80%;
-  max-width: 500px;               /* фиксированная ширина */
+  width: 90%;
+  max-width: 500px;               
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(10px);
   border-radius: 20px;
   padding: 15px;
   margin: 10px auto;
-  max-height: 150px;
+  max-height: 115px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  transition: max-height 0.6s ease, box-shadow 0.4s ease;
+  transition: max-height 1s ease, box-shadow 0.4s ease;
 }
 
 .lesson-card.expanded {
-  max-height: 800px;           /* достаточно для раскрытия всего контента */
+  max-height: 1000px;           /* достаточно для раскрытия всего контента */
   box-shadow: 0 8px 30px rgba(0,0,0,0.3);
 }
 
@@ -299,14 +319,16 @@ nav {
 
 .lesson-title {
   flex: 1;
-  margin-left: 0;
+  margin-left: 20px;
   color: #dbdbdb;
+  font-size: 20px;
 }
 
 .lesson-start {
   font-size: 14px;
   padding: 6px 10px;
   margin-left: 15px;
+  margin-top: 55px;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(10px);
@@ -322,13 +344,20 @@ nav {
 }
 
 .lesson-content {
-  margin-top: 15px;
-  display: none;
+  max-height: 0;                    /* свернутое состояние */
+  overflow: hidden;                 /* скрываем лишнее */
+  opacity: 0;                       /* чтобы плавно появлялось */
+  margin-top: 0;
+  transition: max-height 0.8s ease, opacity 0.6s ease, margin-top 0.6s ease;
 }
 
+/* когда карточка раскрыта */
 .lesson-card.expanded .lesson-content {
-  display: block;
+  max-height: 1200px;               /* большое значение — достаточно для любого контента */
+  opacity: 1;
+  margin-top: 45px;                 /* возвращаем отступ */
 }
+
 
 .lesson-pause {
   display: block;
@@ -347,6 +376,10 @@ nav {
 .lesson-pause:hover {
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.lesson-pause svg {
+  filter: invert(1) brightness(80%);
 }
 
 .lesson-images, .lesson-game {
@@ -372,3 +405,62 @@ nav {
     align-items: center; /* карточки по центру */
 }
 
+.lesson-icon {
+  width: 10px;
+  height: 100px;
+}
+
+@media(max-width: 528px) {
+
+  .learning-container h1 {
+    margin: 0 -20px 20px 0;    /* нижний отступ */
+  }
+}
+
+
+.card-payment-game h3 {
+  color: #dbdbdb;
+}
+
+.card-payment-game {
+  text-align: center;
+  user-select: none;
+  margin-top: -40px;
+  background: rgba(255,255,255,0.1);
+  width: 100%;
+  border-radius: 15px;
+}
+
+.terminal-area {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  height: 350px;
+  margin: 20px auto;
+}
+
+.terminal {
+  position: absolute;
+  top: 0px;
+  left: 15px;
+  width: 200px;
+  transition: all 0.3s ease;
+  border-radius: 10px;
+}
+
+.card {
+  position: absolute;
+  width: 130px;
+  cursor: grab;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.message {
+  font-size: 18px;
+  font-weight: bold;
+  top: -10px;
+}
+
+.message.error { color: #ff5f5f; }
+.message.success { color: #00ff88; }

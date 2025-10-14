@@ -1,0 +1,21 @@
+[
+  {
+    "id": 1,
+    "title": "Что такое банковская карта",
+    "icon": "../img/line.png",
+    "video": "lesson1.mp4",
+    "description": "Сегодня я расскажу тебе, что такое банковская карта..."
+  },
+  {
+  "id": 2,
+  "title": "Как пользоваться банковской картой?",
+  "icon": "../img/line.png",
+  "description": "Теперь ты узнаешь, как копить деньги и ставить цели...",
+  "type": "interactive",
+  "gameType": "card-payment",
+  "gameData": {
+    "card": "/img/card.png",
+    "terminal": "/img/terminal.png"
+  }
+}
+]
