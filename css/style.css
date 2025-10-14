@@ -418,6 +418,7 @@ nav {
 }
 
 
+/* CSS */
 .card-payment-game h3 {
   color: #dbdbdb;
 }
@@ -425,10 +426,11 @@ nav {
 .card-payment-game {
   text-align: center;
   user-select: none;
-  margin-top: -40px;
   background: rgba(255,255,255,0.1);
   width: 100%;
-  border-radius: 15px;
+  border-radius: 15px; /* закругленные углы */
+  position: relative;
+  overflow: hidden;
 }
 
 .terminal-area {
@@ -437,12 +439,14 @@ nav {
   max-width: 500px;
   height: 350px;
   margin: 20px auto;
+  border-radius: 15px; /
+  overflow: hidden;
 }
 
 .terminal {
   position: absolute;
   top: 0px;
-  left: 15px;
+  left: 5px;
   width: 200px;
   transition: all 0.3s ease;
   border-radius: 10px;
@@ -457,9 +461,14 @@ nav {
 }
 
 .message {
-  font-size: 18px;
+  position: absolute; /* фиксируем снизу */
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
   font-weight: bold;
-  top: -10px;
+  pointer-events: none;
+  z-index: 100;
 }
 
 .message.error { color: #ff5f5f; }

@@ -10,7 +10,6 @@
   "id": 2,
   "title": "Как пользоваться банковской картой?",
   "icon": "../img/line.png",
-  "description": "Теперь ты узнаешь, как копить деньги и ставить цели...",
   "type": "interactive",
   "gameType": "card-payment",
   "gameData": {

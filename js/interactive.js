@@ -3,7 +3,7 @@ export function createCardPaymentGame(container) {
   container.innerHTML = `
     <div class="card-payment-game">
       <h3>Приложи карту к терминалу</h3>
-      <div class="terminal-area" style="position: relative;">
+      <div class="terminal-area">
         <img src="backend/lessons/images/terminal0.png" class="terminal" id="terminal">
         <img src="backend/lessons/images/card.png" class="card" id="card">
         <div id="readerZone"></div>
@@ -17,32 +17,28 @@ export function createCardPaymentGame(container) {
   const message = container.querySelector('#message');
   const readerZone = container.querySelector('#readerZone');
 
-  // 🔊 Звуки (пути укажи сам)
   const successSound = new Audio('backend/lessons/sounds/success.mp3');
   const failSound = new Audio('backend/lessons/sounds/fail.mp3');
-  const beepSound = new Audio('backend/lessons/sounds/beep.mp3'); // звук при поднесении карты
+  const beepSound = new Audio('backend/lessons/sounds/beep.mp3');
 
-  // 🟩 Зона считывания
-  readerZone.style.position = 'absolute';
-  readerZone.style.width = '130px';
-  readerZone.style.height = '66px';
-  readerZone.style.top = '30px';
-  readerZone.style.left = '50px';
-  readerZone.style.borderRadius = '8px';
-  readerZone.style.backgroundColor = 'rgba(0,255,0,0.15)';
-  readerZone.style.border = '2px dashed #00ff55';
-  readerZone.style.pointerEvents = 'none';
-  readerZone.style.transition = 'background-color 0.3s, box-shadow 0.3s';
+  // Зона считывания
+  Object.assign(readerZone.style, {
+    position: 'absolute',
+    width: '130px',
+    height: '66px',
+    top: '30px',
+    left: '40px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(0,255,0,0.15)',
+    border: '2px dashed #00ff55',
+    pointerEvents: 'none',
+    transition: 'background-color 0.3s, box-shadow 0.3s'
+  });
 
-  let isDragging = false;
-  let offsetX = 0;
-  let offsetY = 0;
-  let holdStart = null;
-  let holdTimer = null;
-  let success = false;
-  let inReader = false;
+  let isDragging = false, offsetX = 0, offsetY = 0;
+  let holdStart = null, holdTimer = null;
+  let success = false, inReader = false;
 
-  // ======= ВСПОМОГАТЕЛЬНЫЕ =======
   function getCoords(e) {
     if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     return { x: e.clientX, y: e.clientY };
@@ -51,17 +47,10 @@ export function createCardPaymentGame(container) {
   function isOverReader() {
     const cardRect = card.getBoundingClientRect();
     const zoneRect = readerZone.getBoundingClientRect();
-    return !(
-      cardRect.right < zoneRect.left ||
-      cardRect.left > zoneRect.right ||
-      cardRect.bottom < zoneRect.top ||
-      cardRect.top > zoneRect.bottom
-    );
+    return !(cardRect.right < zoneRect.left || cardRect.left > zoneRect.right || cardRect.bottom < zoneRect.top || cardRect.top > zoneRect.bottom);
   }
 
-  // ======= ПЕРЕТАСКИВАНИЕ =======
   function startDrag(e) {
-    if (success) return;
     isDragging = true;
     card.style.transition = 'none';
     const { x, y } = getCoords(e);
@@ -74,12 +63,10 @@ export function createCardPaymentGame(container) {
     if (!isDragging || success) return;
     const { x, y } = getCoords(e);
     const parentRect = container.querySelector('.terminal-area').getBoundingClientRect();
-
     card.style.left = `${x - parentRect.left - offsetX}px`;
     card.style.top = `${y - parentRect.top - offsetY}px`;
 
     const nowOverReader = isOverReader();
-
     if (nowOverReader && !inReader) {
       inReader = true;
       beepSound.currentTime = 0;
@@ -87,31 +74,25 @@ export function createCardPaymentGame(container) {
       startHoldCheck();
     } else if (!nowOverReader && inReader) {
       inReader = false;
-      stopHoldCheck(true); // ушёл — проверить на ошибку
+      stopHoldCheck(true);
     }
   }
 
   function endDrag() {
     if (!isDragging) return;
     isDragging = false;
-
-    // Если отпустил над зоной — проверим удержание
     if (inReader) {
       stopHoldCheck(true);
       inReader = false;
     }
-
     resetCard();
   }
 
-  // ======= ПРОВЕРКА УДЕРЖАНИЯ =======
   function startHoldCheck() {
     holdStart = Date.now();
-
     holdTimer = setInterval(() => {
       const elapsed = Date.now() - holdStart;
       updateGlow(elapsed / 2000);
-
       if (elapsed >= 2000) {
         clearInterval(holdTimer);
         holdTimer = null;
@@ -123,22 +104,17 @@ export function createCardPaymentGame(container) {
   function stopHoldCheck(triggerFail = false) {
     if (!holdStart) return;
     const elapsed = Date.now() - holdStart;
-
     clearInterval(holdTimer);
     holdTimer = null;
     holdStart = null;
     resetGlow();
-
-    if (triggerFail && elapsed < 2000 && !success) {
-      failPay();
-    }
+    if (triggerFail && elapsed < 2000 && !success) failPay();
   }
 
-  // ======= ВИЗУАЛЬНЫЕ ЭФФЕКТЫ =======
   function updateGlow(progress) {
     const p = Math.min(progress, 1);
-    readerZone.style.backgroundColor = `rgba(0,255,0,${0.15 + p * 0.6})`;
-    readerZone.style.boxShadow = `0 0 ${10 + p * 30}px rgba(0,255,0,${p})`;
+    readerZone.style.backgroundColor = `rgba(0,255,0,${0.15 + p*0.6})`;
+    readerZone.style.boxShadow = `0 0 ${10 + p*30}px rgba(0,255,0,${p})`;
   }
 
   function resetGlow() {
@@ -162,7 +138,6 @@ export function createCardPaymentGame(container) {
     readerZone.style.boxShadow = '0 0 40px rgba(0,255,0,0.9)';
   }
 
-  // ======= РЕЗУЛЬТАТЫ =======
   function failPay() {
     failSound.currentTime = 0;
     failSound.play();
@@ -178,19 +153,21 @@ export function createCardPaymentGame(container) {
   }
 
   function successPay() {
-    if (success) return; // предотвращаем повторное срабатывание
-    success = true;
-    successSound.currentTime = 0;
-    successSound.play();
-    successGlow();
-    terminal.src = 'backend/lessons/images/terminal1.png';
-    message.textContent = '✅ Оплата прошла успешно!';
-    message.classList.add('success');
-    setTimeout(() => {
-      message.textContent = '';
-      message.classList.remove('success');
-    }, 2000);
-  }
+  successSound.currentTime = 0;
+  successSound.play();
+  successGlow();
+  terminal.src = 'backend/lessons/images/terminal1.png';
+  message.textContent = 'Оплата прошла успешно!';
+  message.classList.add('success');
+
+  // Сброс через 2 секунды, чтобы можно было снова
+  setTimeout(() => {
+    message.textContent = '';
+    message.classList.remove('success');
+    terminal.src = 'backend/lessons/images/terminal0.png';
+    success = false;       // <-- теперь можно снова
+  }, 2000);
+}
 
   function resetCard() {
     card.style.transition = 'all 0.4s ease';
@@ -199,7 +176,6 @@ export function createCardPaymentGame(container) {
     card.style.opacity = '1';
   }
 
-  // ======= СОБЫТИЯ =======
   card.addEventListener('mousedown', startDrag);
   card.addEventListener('touchstart', startDrag);
   window.addEventListener('mousemove', drag);
@@ -207,7 +183,6 @@ export function createCardPaymentGame(container) {
   window.addEventListener('mouseup', endDrag);
   window.addEventListener('touchend', endDrag);
 
-  // ======= ДОПОЛНИТЕЛЬНО: автоматическая проверка (если держит без движения) =======
   setInterval(() => {
     if (!isDragging || success) return;
     const nowOverReader = isOverReader();
@@ -220,7 +195,7 @@ export function createCardPaymentGame(container) {
       inReader = false;
       stopHoldCheck(true);
     }
-  }, 100); // проверяем каждые 0.1 сек
+  }, 100);
 
   resetCard();
 }
