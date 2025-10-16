@@ -1,4 +1,3 @@
-// index.js — финальная версия: оригинальные анимации + непрерывный режим
 document.addEventListener('DOMContentLoaded', () => {
   const micBtn = document.getElementById('micBtn');
   const micIcon = document.getElementById('micIcon');
@@ -345,7 +344,6 @@ document.addEventListener('DOMContentLoaded', () => {
           currentLessonCard = card;
 
 
-          // Видео
           if (lesson.video) {
             let video = card.querySelector('video.lesson-video');
             if (!video) {

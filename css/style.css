@@ -5,7 +5,7 @@ html, body {
     padding: 0;
     font-family: sans-serif;
     background: linear-gradient(345deg, rgba(10, 19, 33, 1) 0%, rgba(27, 52, 56, 1) 100%);
-    overflow: hidden; /* полностью скрываем скролл */
+    overflow: hidden; 
     position: relative;
 
 }
@@ -46,7 +46,7 @@ html, body {
 }
 
 #sphere {
-  position: absolute;       /* важно для центрирования */
+  position: absolute;       
   top: 90%;
   left: 50%;
   width: 200px;
@@ -78,8 +78,8 @@ nav {
 .menu {
   display: flex;
   justify-content: space-around; 
-  align-items: center;        /* выравниваем все вкладки по центру вертикали */
-  height: 50px;               /* высота меню */
+  align-items: center;        
+  height: 50px;               
   padding: 10px 20px;
   border-radius: 20px;
   backdrop-filter: blur(10px);
@@ -91,32 +91,32 @@ nav {
 .menu .tab {
   flex: 1;
   display: flex;             
-  flex-direction: column;    /* иконка сверху, текст снизу */
-  align-items: center;       /* центрируем по горизонтали */
-  justify-content: center;   /* центрируем по вертикали */
-  gap: 10px;                  /* расстояние между иконкой и текстом */
+  flex-direction: column;   
+  align-items: center;       
+  justify-content: center;   
+  gap: 10px;                  
   font-size: 12px;           
   color: #bdbdbd;
   text-decoration: none;
-  height: 60px;              /* фиксированная высота вкладки */
-  box-sizing: border-box;    /* чтобы паддинги не ломали высоту */
+  height: 60px;              
+  box-sizing: border-box;   
   transition: transform 0.2s, color 0.3s;
 }
 
 .menu .tab img {
-  display: block;           /* убираем нижние отступы inline-block */
-  max-width: 100%;          /* иконка не вылезет из контейнера */
-  height: auto;             /* сохраняем пропорции */
+  display: block;           
+  max-width: 100%;          
+  height: auto;             
   filter: invert(1) brightness(80%);
 }
 
 .menu .tab.active {
-  color: #6ed233;            /* зелёный акцент для активной вкладки */
+  color: #6ed233;            
   transform: scale(1.2);
 }
 
 .menu .tab .icon {
-    width: 24px;   /* базовый размер, можно переопределять */
+    width: 24px;   
     height: 24px;
 }
 
@@ -135,20 +135,20 @@ nav {
     height: 30px;
 }
 
-/* Разрешаем скролл только у страницы "Обучение" */
+
 #learning.page {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  overflow-y: auto; /* включаем вертикальный скролл */
-  -webkit-overflow-scrolling: touch; /* плавный скролл на мобилках */
-  padding-bottom: 100px; /* чтобы не перекрывалось нижним меню */
+  overflow-y: auto; 
+  -webkit-overflow-scrolling: touch; 
+  padding-bottom: 100px; 
   box-sizing: border-box;
 }
 
-/* скрываем стандартный скроллбар (по желанию) */
+
 #learning::-webkit-scrollbar {
   width: 0;
   background: transparent;
@@ -178,7 +178,6 @@ nav {
   }
 }
 
-/* Пульсация шара при ответе ИИ */
 .speaking {
   animation: speakPulse 1.5s infinite ease-in-out;
 }
@@ -196,14 +195,14 @@ nav {
   width: 100%;
   height: 100%;
   opacity: 0;
-  transform: translateY(20px); /* сдвиг вниз при скрытии */
+  transform: translateY(20px); 
   transition: opacity 0.4s ease, transform 0.4s ease;
   pointer-events: none; 
 }
 
 .page.active {
   opacity: 1;
-  transform: translateY(0);   /* плавно поднимаем в центр */
+  transform: translateY(0); 
   pointer-events: all;
 }
 
@@ -217,20 +216,20 @@ nav {
   max-width: 900px;
   width: 90%;
   margin-top: 50px;
-  text-align: left; /* теперь заголовок слева */
+  text-align: left; 
 }
 
 .avatars-container h1 {
   color: #dbdbdb;
   font-size: 30px;
-  margin: 0 0 30px 25px; /* небольшой отступ слева */
+  margin: 0 0 30px 25px; 
 }
 
 .avatars-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 30px;
-  justify-items: center; /* оставляем аватары по центру */
+  justify-items: center; 
   width: 100%;
 }
 
@@ -242,14 +241,13 @@ nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px; /* размер эмодзи или картинки */
-  background: rgba(255, 255, 255, 0.1); /* полупрозрачный фон */
-  border-radius: 50%; /* круглые */
-  backdrop-filter: blur(10px); /* эффект “жидкого стекла” */
+  font-size: 40px; 
+  background: rgba(255, 255, 255, 0.1); 
+  border-radius: 50%; 
+  backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   transition: transform 0.3s, box-shadow 0.3s;
   cursor: pointer;
-  transition: 0.5s;
 }
 
 .avatar:hover {
@@ -259,25 +257,17 @@ nav {
 }
 
 .avatar img {
-  width: 70%;       /* чуть меньше круга, чтобы рамка была видна */
+  width: 70%;       
   height: 70%;
   border-radius: 40%;
-  object-fit: cover; /* обрезаем по кругу, не искажая */
+  object-fit: cover; 
 }
 
-.learning-container {
-    max-width: 900px;
-    width: 90%;
-    margin: 50px auto 0 auto; /* центрируем весь блок */
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* карточки по центру */
-}
 
 .learning-container h1 {
-    width: 100%;           /* заголовок занимает ширину карточек */
-    max-width: 450px;      /* та же ширина, что у карточек */
-    margin: 0 25px 20px 0;    /* нижний отступ */
+    width: 100%;          
+    max-width: 450px;      
+    margin: 0 25px 20px 0;    
     color: #dbdbdb;
     font-size: 30px;
     z-index: 2;
@@ -286,10 +276,10 @@ nav {
 #lessonsGrid {
     display: flex;
     flex-direction: column;
-    align-items: center; /* карточки по центру */
+    align-items: center; 
     gap: 0px;
     width: 100%;
-    max-width: 500px;    /* фиксированная ширина карточек */
+    max-width: 500px;    
 }
 
 .lesson-card {
@@ -307,7 +297,7 @@ nav {
 }
 
 .lesson-card.expanded {
-  max-height: 1000px;           /* достаточно для раскрытия всего контента */
+  max-height: 1000px;         
   box-shadow: 0 8px 30px rgba(0,0,0,0.3);
 }
 
@@ -344,18 +334,18 @@ nav {
 }
 
 .lesson-content {
-  max-height: 0;                    /* свернутое состояние */
-  overflow: hidden;                 /* скрываем лишнее */
-  opacity: 0;                       /* чтобы плавно появлялось */
+  max-height: 0;                    
+  overflow: hidden;                
+  opacity: 0;                       
   margin-top: 0;
   transition: max-height 0.8s ease, opacity 0.6s ease, margin-top 0.6s ease;
 }
 
 /* когда карточка раскрыта */
 .lesson-card.expanded .lesson-content {
-  max-height: 1200px;               /* большое значение — достаточно для любого контента */
+  max-height: 1200px;               
   opacity: 1;
-  margin-top: 45px;                 /* возвращаем отступ */
+  margin-top: 45px;                
 }
 
 
@@ -399,10 +389,10 @@ nav {
 .learning-container {
     max-width: 900px;
     width: 90%;
-    margin: 50px auto 0 auto; /* центрируем контейнер */
+    margin: 50px auto 0 auto; 
     display: flex;
     flex-direction: column;
-    align-items: center; /* карточки по центру */
+    align-items: center;
 }
 
 .lesson-icon {
@@ -413,12 +403,11 @@ nav {
 @media(max-width: 528px) {
 
   .learning-container h1 {
-    margin: 0 -20px 20px 0;    /* нижний отступ */
+    margin: 0 -20px 20px 0;    
   }
 }
 
 
-/* CSS */
 .card-payment-game h3 {
   color: #dbdbdb;
 }
@@ -428,7 +417,7 @@ nav {
   user-select: none;
   background: rgba(255,255,255,0.1);
   width: 100%;
-  border-radius: 15px; /* закругленные углы */
+  border-radius: 15px; 
   position: relative;
   overflow: hidden;
 }
@@ -439,7 +428,7 @@ nav {
   max-width: 500px;
   height: 350px;
   margin: 20px auto;
-  border-radius: 15px; /
+  border-radius: 15px; 
   overflow: hidden;
 }
 
@@ -461,7 +450,7 @@ nav {
 }
 
 .message {
-  position: absolute; /* фиксируем снизу */
+  position: absolute; 
   bottom: 3px;
   left: 50%;
   transform: translateX(-50%);

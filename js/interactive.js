@@ -1,4 +1,3 @@
-// interactive.js — игра "оплата картой"
 export function createCardPaymentGame(container) {
   container.innerHTML = `
     <div class="card-payment-game">
@@ -53,6 +52,7 @@ export function createCardPaymentGame(container) {
   function startDrag(e) {
     isDragging = true;
     card.style.transition = 'none';
+    disableScroll();
     const { x, y } = getCoords(e);
     const rect = card.getBoundingClientRect();
     offsetX = x - rect.left;
@@ -81,6 +81,7 @@ export function createCardPaymentGame(container) {
   function endDrag() {
     if (!isDragging) return;
     isDragging = false;
+    enableScroll();
     if (inReader) {
       stopHoldCheck(true);
       inReader = false;
@@ -165,7 +166,7 @@ export function createCardPaymentGame(container) {
     message.textContent = '';
     message.classList.remove('success');
     terminal.src = 'backend/lessons/images/terminal0.png';
-    success = false;       // <-- теперь можно снова
+    success = false;       
   }, 2000);
 }
 
@@ -198,4 +199,14 @@ export function createCardPaymentGame(container) {
   }, 100);
 
   resetCard();
+}
+
+function disableScroll() {
+  document.body.style.overflow = 'hidden';
+  document.body.style.touchAction = 'none';
+}
+
+function enableScroll() {
+  document.body.style.overflow = '';
+  document.body.style.touchAction = '';
 }
