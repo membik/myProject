@@ -20,7 +20,6 @@ export function createCardPaymentGame(container) {
   const failSound = new Audio('backend/lessons/sounds/fail.mp3');
   const beepSound = new Audio('backend/lessons/sounds/beep.mp3');
 
-  // Зона считывания
   Object.assign(readerZone.style, {
     position: 'absolute',
     width: '130px',
@@ -53,6 +52,7 @@ export function createCardPaymentGame(container) {
     isDragging = true;
     card.style.transition = 'none';
     disableScroll();
+    e.preventDefault();
     const { x, y } = getCoords(e);
     const rect = card.getBoundingClientRect();
     offsetX = x - rect.left;
@@ -61,6 +61,7 @@ export function createCardPaymentGame(container) {
 
   function drag(e) {
     if (!isDragging || success) return;
+    e.preventDefault(); // блокировка скролла на мобильных
     const { x, y } = getCoords(e);
     const parentRect = container.querySelector('.terminal-area').getBoundingClientRect();
     card.style.left = `${x - parentRect.left - offsetX}px`;
@@ -154,21 +155,20 @@ export function createCardPaymentGame(container) {
   }
 
   function successPay() {
-  successSound.currentTime = 0;
-  successSound.play();
-  successGlow();
-  terminal.src = 'backend/lessons/images/terminal1.png';
-  message.textContent = 'Оплата прошла успешно!';
-  message.classList.add('success');
+    successSound.currentTime = 0;
+    successSound.play();
+    successGlow();
+    terminal.src = 'backend/lessons/images/terminal1.png';
+    message.textContent = 'Оплата прошла успешно!';
+    message.classList.add('success');
 
-  // Сброс через 2 секунды, чтобы можно было снова
-  setTimeout(() => {
-    message.textContent = '';
-    message.classList.remove('success');
-    terminal.src = 'backend/lessons/images/terminal0.png';
-    success = false;       
-  }, 2000);
-}
+    setTimeout(() => {
+      message.textContent = '';
+      message.classList.remove('success');
+      terminal.src = 'backend/lessons/images/terminal0.png';
+      success = false;       
+    }, 2000);
+  }
 
   function resetCard() {
     card.style.transition = 'all 0.4s ease';
@@ -178,9 +178,9 @@ export function createCardPaymentGame(container) {
   }
 
   card.addEventListener('mousedown', startDrag);
-  card.addEventListener('touchstart', startDrag);
+  card.addEventListener('touchstart', startDrag, { passive: false });
   window.addEventListener('mousemove', drag);
-  window.addEventListener('touchmove', drag);
+  window.addEventListener('touchmove', drag, { passive: false });
   window.addEventListener('mouseup', endDrag);
   window.addEventListener('touchend', endDrag);
 
@@ -201,12 +201,21 @@ export function createCardPaymentGame(container) {
   resetCard();
 }
 
+// Полная блокировка скролла на мобилках
 function disableScroll() {
   document.body.style.overflow = 'hidden';
   document.body.style.touchAction = 'none';
+  document.addEventListener('wheel', preventDefault, { passive: false });
+  document.addEventListener('touchmove', preventDefault, { passive: false });
 }
 
 function enableScroll() {
   document.body.style.overflow = '';
   document.body.style.touchAction = '';
+  document.removeEventListener('wheel', preventDefault);
+  document.removeEventListener('touchmove', preventDefault);
+}
+
+function preventDefault(e) {
+  e.preventDefault();
 }
